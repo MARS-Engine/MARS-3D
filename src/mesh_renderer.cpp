@@ -11,6 +11,7 @@ using namespace mvre_resources;
 using namespace mvre_graphics;
 using namespace mvre_math;
 using namespace mvre_loader;
+using namespace mvre_3d;
 
 void mesh_renderer::load() {
     resource_manager::load_resource("engine/assets/mesh/monkey.obj", mesh);
@@ -18,7 +19,9 @@ void mesh_renderer::load() {
     input = g_instance()->instance<shader_input>();
 
     auto job = mvre_executioner::executioner_job([&]() {
-        resource_manager::load_resource("engine/assets/materials/mesh.mat", mat, g_instance());
+        resource_manager::load_resource("engine/assets/materials/mesh.mat", render_material, g_instance());
+        render_material->set_pipeline<vertex2>();
+        render_material->get_pipeline()->set_viewport({0, 0 }, {1920, 1080 }, {0, 1 });
 
         input->create();
         input->bind();
@@ -39,8 +42,7 @@ void mesh_renderer::load() {
     mvre_executioner::executioner::add_job(mvre_executioner::EXECUTIONER_JOB_PRIORITY_IN_FLIGHT, &job);
     job.wait();
 
-    render_job = new mvre_executioner::executioner_job([&]() {
-        mat->bind();
+    render_job = new mvre_executioner::executioner_job(render_material->get_pipeline(), [&]() {
         input->bind();
         g_instance()->primary_buffer()->draw_indexed(mesh->indices.size());
     });
@@ -57,7 +59,7 @@ void mesh_renderer::update() {
 
     if (update_job == nullptr) {
         update_job = new mvre_executioner::executioner_job([&]() {
-            mat->get_uniform("transform")->update(&trans);
+            render_material->get_uniform("transform")->update(&trans);
         });
     }
 
