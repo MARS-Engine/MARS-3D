@@ -3,4 +3,4 @@ triangle/triangle.vert
 #fragment
 triangle/triangle.frag
 #uniform
-transform matrix 4
+position matrix 16

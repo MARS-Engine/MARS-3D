@@ -37,13 +37,17 @@ void mesh_renderer::load() {
         input->unbind();
         vertex->unbind();
         index->unbind();
+
+        uniforms = render_material->generate_shader_data();
     });
 
     mvre_executioner::executioner::add_job(mvre_executioner::EXECUTIONER_JOB_PRIORITY_IN_FLIGHT, &job);
     job.wait();
 
     render_job = new mvre_executioner::executioner_job(render_material->get_pipeline(), [&]() {
+        render_material->bind();
         input->bind();
+        uniforms->bind();
         g_instance()->primary_buffer()->draw_indexed(mesh->indices.size());
     });
 }
@@ -52,14 +56,13 @@ quaternion<float> t;
 
 void mesh_renderer::update() {
 
-    transform()->set_position(vector3<float>(0, 0, 2));
     transform()->set_rotation(transform()->rotation() * quaternion<float>::from_axis_angle(vector3<float>(0.0f, 1.0f, 0.0f), time_helper::delta_time()));
 
     auto trans =  g_instance()->get_camera().get_view_proj() * transform()->matrix();
 
     if (update_job == nullptr) {
         update_job = new mvre_executioner::executioner_job([&]() {
-            render_material->get_uniform("transform")->update(&trans);
+            uniforms->get_uniform("position")->update(&trans);
         });
     }
 

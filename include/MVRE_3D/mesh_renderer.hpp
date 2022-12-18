@@ -12,7 +12,7 @@ namespace mvre_3d {
         public:
         mvre_loader::wavefront_mesh* mesh;
         mvre_graphics::shader_input* input = nullptr;
-        mvre_graphics::pipeline* new_pipeline = nullptr;
+        mvre_graphics::shader_data* uniforms;
 
         void load() override;
         void update() override;
