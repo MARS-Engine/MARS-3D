@@ -16,6 +16,7 @@ namespace mvre_3d {
 
         void load() override;
         void update() override;
+        void destroy() override;
     };
 }
 

@@ -21,7 +21,7 @@ void mesh_renderer::load() {
     auto job = mvre_executioner::executioner_job([&]() {
         resource_manager::load_resource("engine/assets/materials/mesh.mat", render_material, g_instance());
         render_material->set_pipeline<vertex2>();
-        render_material->get_pipeline()->set_viewport({0, 0 }, {1920, 1080 }, {0, 1 });
+        render_material->get_pipeline()->set_viewport({ 0, 0 }, {1920, 1080 }, {0, 1 });
 
         input->create();
         input->bind();
@@ -45,7 +45,6 @@ void mesh_renderer::load() {
     job.wait();
 
     render_job = new mvre_executioner::executioner_job(render_material->get_pipeline(), [&]() {
-        render_material->bind();
         input->bind();
         uniforms->bind();
         g_instance()->primary_buffer()->draw_indexed(mesh->indices.size());
@@ -62,7 +61,7 @@ void mesh_renderer::update() {
 
     if (update_job == nullptr) {
         update_job = new mvre_executioner::executioner_job([&]() {
-            uniforms->get_uniform("position")->update(&trans);
+            uniforms->update("position", &trans);
         });
     }
 
@@ -70,3 +69,9 @@ void mesh_renderer::update() {
     update_job->wait();
 }
 
+void mesh_renderer::destroy() {
+    input->destroy();
+    delete input;
+    uniforms->destroy();
+    delete uniforms;
+}

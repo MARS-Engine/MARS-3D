@@ -3,4 +3,5 @@ triangle/triangle.vert
 #fragment
 triangle/triangle.frag
 #uniform
-position matrix 16
+position matrix 16 0
+_mainTex sampler 1 1
