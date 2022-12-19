@@ -1,5 +1,5 @@
-#ifndef __TEST__COMPONENT__
-#define __TEST__COMPONENT__
+#ifndef TEST_COMPONENT_
+#define TEST_COMPONENT_
 
 #include <MVRE/engine/component.hpp>
 #include <MVRE/graphics/material.hpp>
@@ -13,6 +13,12 @@ namespace mvre_3d {
         mvre_loader::wavefront_mesh* mesh;
         mvre_graphics::shader_input* input = nullptr;
         mvre_graphics::shader_data* uniforms;
+
+        std::string mesh_path;
+        std::string material_path;
+
+        inline void set_material(const std::string& _path) { material_path = _path; }
+        inline void set_mesh_path(const std::string& _path) { mesh_path = _path; }
 
         void load() override;
         void update() override;

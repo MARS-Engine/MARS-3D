@@ -14,12 +14,12 @@ using namespace mvre_loader;
 using namespace mvre_3d;
 
 void mesh_renderer::load() {
-    resource_manager::load_resource("engine/assets/mesh/monkey.obj", mesh);
+    resource_manager::load_resource(mesh_path, mesh);
 
     input = g_instance()->instance<shader_input>();
 
     auto job = mvre_executioner::executioner_job([&]() {
-        resource_manager::load_resource("engine/assets/materials/mesh.mat", render_material, g_instance());
+        resource_manager::load_resource(material_path, render_material, g_instance());
         render_material->set_pipeline<vertex2>();
         render_material->get_pipeline()->set_viewport({ 0, 0 }, {1920, 1080 }, {0, 1 });
 
