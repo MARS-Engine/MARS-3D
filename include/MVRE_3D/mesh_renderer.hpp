@@ -9,10 +9,12 @@
 namespace mvre_3d {
 
     class mesh_renderer : public mvre_engine::component<mesh_renderer>, public mvre_layers::load_layer, public mvre_layers::update_layer, public mvre_layers::render_layer  {
-        public:
-        mvre_loader::wavefront_mesh* mesh;
+    private:
+        mvre_math::matrix4<float> m_position_mat;
+    public:
+        mvre_loader::wavefront_mesh* mesh = nullptr;
         mvre_graphics::shader_input* input = nullptr;
-        mvre_graphics::shader_data* uniforms;
+        mvre_graphics::shader_data* uniforms = nullptr;
 
         std::string mesh_path;
         std::string material_path;
@@ -21,7 +23,7 @@ namespace mvre_3d {
         inline void set_mesh_path(const std::string& _path) { mesh_path = _path; }
 
         void load() override;
-        void update() override;
+        void prepare_render() override;
         void destroy() override;
     };
 }
