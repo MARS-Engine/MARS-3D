@@ -3,9 +3,6 @@
 #include <MVRE/executioner/executioner.hpp>
 #include <MVRE/graphics/attribute/vertex2.hpp>
 #include <MVRE/math/vector4.hpp>
-#include <MVRE/math/matrix4.hpp>
-#include <MVRE/math/quaternion.hpp>
-#include <MVRE/time/time_helper.hpp>
 
 using namespace mvre_resources;
 using namespace mvre_graphics;
@@ -51,17 +48,12 @@ void mesh_renderer::load() {
     });
 }
 
-quaternion<float> t;
-
-void mesh_renderer::update() {
-
-    transform()->set_rotation(transform()->rotation() * quaternion<float>::from_axis_angle(vector3<float>(0.0f, 1.0f, 0.0f), time_helper::delta_time()));
-
-    auto trans =  g_instance()->get_camera().get_view_proj() * transform()->matrix();
+void mesh_renderer::prepare_render() {
+    m_position_mat =  g_instance()->get_camera().get_view_proj() * transform()->matrix();
 
     if (update_job == nullptr) {
         update_job = new mvre_executioner::executioner_job([&]() {
-            uniforms->update("position", &trans);
+            uniforms->update("position", &m_position_mat);
         });
     }
 
