@@ -1,69 +1,162 @@
-#include <MVRE_3D/mesh_renderer.hpp>
-#include <MVRE/resources/resource_manager.hpp>
-#include <MVRE/executioner/executioner.hpp>
-#include <MVRE/graphics/attribute/vertex2.hpp>
-#include <MVRE/math/vector4.hpp>
+#include <MARS_3D/mesh_renderer.hpp>
+#include <MARS/resources/resource_manager.hpp>
+#include <MARS/executioner/executioner.hpp>
+#include <MARS/graphics/attribute/vertex3.hpp>
+#include <MARS/math/vector4.hpp>
 
-using namespace mvre_resources;
-using namespace mvre_graphics;
-using namespace mvre_math;
-using namespace mvre_loader;
-using namespace mvre_3d;
+using namespace mars_resources;
+using namespace mars_graphics;
+using namespace mars_math;
+using namespace mars_loader;
+using namespace mars_3d;
 
-void mesh_renderer::load() {
-    resource_manager::load_resource(mesh_path, mesh);
+pl::safe_map<std::pair<std::string, std::string>, mesh_group*> multi_meshes;
 
-    input = g_instance()->instance<shader_input>();
+mesh_group* get_mesh_group(const std::string& _mat, const std::string& _mesh, graphics_instance* _instance) {
+    auto pair = std::make_pair(_mat, _mesh);
 
-    auto job = mvre_executioner::executioner_job([&]() {
-        resource_manager::load_resource(material_path, render_material, g_instance());
-        render_material->set_pipeline<vertex2>();
-        render_material->get_pipeline()->set_viewport({ 0, 0 }, {1920, 1080 }, {0, 1 });
+    if (multi_meshes.contains(pair))
+        return multi_meshes[pair];
 
-        input->create();
-        input->bind();
+    auto group = new mesh_group(_mat, _mesh, _instance);
 
-        auto vertex = input->add_buffer(mesh->vertices.size() * sizeof(wave_vertex), MVRE_MEMORY_TYPE_VERTEX);
-        vertex->copy_data(mesh->vertices.data());
+    multi_meshes.lock();
+    multi_meshes[pair] = group;
+    multi_meshes.unlock();
 
-        auto index = input->add_buffer(mesh->indices.size() * sizeof(uint32_t), MVRE_MEMORY_TYPE_INDEX);
-        index->copy_data(mesh->indices.data());
-
-        input->load_input(vertex2::get_description());
-
-        input->unbind();
-        vertex->unbind();
-        index->unbind();
-
-        uniforms = render_material->generate_shader_data();
-    });
-
-    mvre_executioner::executioner::add_job(mvre_executioner::EXECUTIONER_JOB_PRIORITY_IN_FLIGHT, &job);
-    job.wait();
-
-    render_job = new mvre_executioner::executioner_job(render_material->get_pipeline(), [&]() {
-        input->bind();
-        uniforms->bind();
-        g_instance()->primary_buffer()->draw_indexed(mesh->indices.size());
-    });
+    return group;
 }
 
-void mesh_renderer::prepare_render() {
-    m_position_mat =  g_instance()->get_camera().get_view_proj() * transform()->matrix();
+void destroy_group(const std::string& _mat, const std::string& _mesh, shader_data* _uniform) {
+    auto pair = std::make_pair(_mat, _mesh);
 
-    if (update_job == nullptr) {
-        update_job = new mvre_executioner::executioner_job([&]() {
-            uniforms->update("position", &m_position_mat);
-        });
+    multi_meshes.lock();
+    if (multi_meshes[pair]->destroy_uniform(_uniform)) {
+        delete multi_meshes[pair];
+        multi_meshes.erase(pair);
+    }
+    multi_meshes.unlock();
+}
+
+
+mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, graphics_instance* _instance) {
+    resource_manager::load_resource(_mesh, m_mesh);
+
+    m_instance = _instance;
+    m_input = m_instance->instance<shader_input>();
+
+    auto job = mars_executioner::executioner_job([&]() {
+        resource_manager::load_resource(_mat, m_mat, m_instance);
+        m_mat->set_pipeline<vertex3>();
+        m_mat->get_pipeline()->set_viewport({ 0, 0 }, {1920, 1080 }, {0, 1 });
+
+        m_input->create();
+        m_input->bind();
+
+        auto vertex = m_input->add_buffer(m_mesh->vertices.size() * sizeof(wave_vertex), MARS_MEMORY_TYPE_VERTEX);
+        vertex->copy_data(m_mesh->vertices.data());
+
+        auto index = m_input->add_buffer(m_mesh->indices.size() * sizeof(uint32_t), MARS_MEMORY_TYPE_INDEX);
+        index->copy_data(m_mesh->indices.data());
+
+        m_input->load_input(vertex3::get_description());
+
+        m_input->unbind();
+        vertex->unbind();
+        index->unbind();
+    });
+
+    mars_executioner::executioner::add_job(mars_executioner::EXECUTIONER_JOB_PRIORITY_IN_FLIGHT, &job);
+    job.wait();
+}
+
+void mesh_group::add_uniform(shader_data* _uniforms) {
+    m_uniforms.lock();
+    m_uniforms.push_back(_uniforms);
+    m_uniforms.unlock();
+}
+
+void mesh_group::draw() {
+    if (m_draw_executed)
+        return;
+
+    std::map<size_t, texture*> active_textures;
+
+    m_mat->bind();
+    m_input->bind();
+    for (auto& uniforms : m_uniforms) {
+
+        for (auto& uniform : uniforms->get_uniforms()) {
+            uniform.second->bind(m_instance->backend()->current_frame());
+            uniform.second->copy_data();
+        }
+
+        for (auto& texture : uniforms->get_textures()) {
+            if (active_textures[texture.second->get_index()] != texture.second) {
+                active_textures[texture.second->get_index()] = texture.second;
+                texture.second->bind();
+            }
+        }
+
+        m_instance->primary_buffer()->draw_indexed(m_mesh->indices.size());
     }
 
-    mvre_executioner::executioner::add_job(mvre_executioner::EXECUTIONER_JOB_PRIORITY_IN_FLIGHT, update_job);
-    update_job->wait();
+    m_draw_executed = true;
+}
+
+void mesh_group::clear() {
+    m_draw_executed = false;
+}
+
+bool mesh_group::destroy_uniform(mars_graphics::shader_data* _uniform) {
+    m_uniforms.lock();
+    //NOTE: find is causing memory corruption, not sure why
+    for (size_t i = 0; i < m_uniforms.size(); i++)
+        if (m_uniforms[i] == _uniform)
+        m_uniforms.erase(m_uniforms.begin() + i);
+    m_uniforms.unlock();
+
+    _uniform->destroy();
+    delete _uniform;
+
+    if (m_uniforms.empty())
+        return true;
+    return false;
+}
+
+void mesh_renderer::load() {
+    _group = get_mesh_group(material_path, mesh_path, g_instance());
+
+    auto job = mars_executioner::executioner_job([&]() {
+        uniforms = _group->get_material()->generate_shader_data();
+    });
+
+    mars_executioner::executioner::add_job(mars_executioner::EXECUTIONER_JOB_PRIORITY_IN_FLIGHT, &job);
+
+    render_job = new mars_executioner::executioner_job(_group->get_material()->get_pipeline(), [&]() {
+        _group->draw();
+    });
+
+    job.wait();
+    _group->add_uniform(uniforms);
+
+    uniforms->update("position", &m_rendering_mat);
+}
+
+void mesh_renderer::prepare_gpu() {
+    m_update_mat.transform = g_instance()->get_camera().get_proj_view() * transform()->matrix();
+    m_update_mat.model = transform()->matrix();
+    m_update_mat.normal = matrix3<float>(transform()->matrix()).inverse().transpose();
+}
+
+void mesh_renderer::send_to_gpu() {
+    m_rendering_mat = m_update_mat;
+}
+
+void mesh_renderer::post_render() {
+    _group->clear();
 }
 
 void mesh_renderer::destroy() {
-    input->destroy();
-    delete input;
-    uniforms->destroy();
-    delete uniforms;
+    destroy_group(material_path, mesh_path, uniforms);
 }

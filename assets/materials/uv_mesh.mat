@@ -1,2 +1,3 @@
-triangle.mshader:shader
-uv.jpeg:texture:_mainTex
+forward_buffer.mshader:shader
+cube.png:texture:_mainTex
+cube_s.png:texture:_mainTexS

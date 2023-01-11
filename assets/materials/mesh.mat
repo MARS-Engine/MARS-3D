@@ -1,2 +1,2 @@
-triangle.mshader:shader
+forward_buffer.mshader:shader
 test.png:texture:_mainTex

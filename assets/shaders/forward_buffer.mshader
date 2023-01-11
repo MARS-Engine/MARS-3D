@@ -1,0 +1,8 @@
+#vertex
+forward_buffer/forward_buffer.vert
+#fragment
+forward_buffer/forward_buffer.frag
+#uniform
+position buffer 44 0
+_mainTex sampler 1 1
+_mainTexS sampler 1 2

@@ -1,0 +1,10 @@
+#vertex
+deferred_light/deferred_light.vert
+#fragment
+deferred_light/deferred_light.frag
+#uniform
+lights buffer 388 0
+camera buffer 4 1
+gPosition sampler 1 2
+gNormal sampler 1 3
+gAlbedoSpec sampler 1 4
