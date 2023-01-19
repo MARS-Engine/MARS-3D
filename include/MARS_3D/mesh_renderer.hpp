@@ -37,7 +37,7 @@ namespace mars_3d {
         mars_math::matrix3<float> normal;
     };
 
-    class mesh_renderer : public mars_engine::component<mesh_renderer>, public mars_layers::load_layer, public mars_layers::update_layer, public mars_layers::render_update_layer, public mars_layers::render_layer  {
+    class mesh_renderer : public mars_engine::component, public mars_layers::load_layer, public mars_layers::update_layer, public mars_layers::render_update_layer, public mars_layers::render_layer  {
     private:
         mesh_shader_mat m_update_mat;
         mesh_shader_mat m_rendering_mat;
