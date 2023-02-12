@@ -32,6 +32,7 @@ void destroy_group(const std::string& _mat, const std::string& _mesh, shader_dat
 
     multi_meshes.lock();
     if (multi_meshes[pair]->destroy_uniform(_uniform)) {
+        multi_meshes[pair]->destroy();
         delete multi_meshes[pair];
         multi_meshes.erase(pair);
     }
@@ -45,29 +46,24 @@ mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, graphi
     m_instance = _instance;
     m_input = m_instance->instance<shader_input>();
 
-    auto job = mars_executioner::executioner_job([&]() {
-        resource_manager::load_resource(_mat, m_mat, m_instance);
-        m_mat->set_pipeline<vertex3>();
-        m_mat->get_pipeline()->set_viewport({ 0, 0 }, {1920, 1080 }, {0, 1 });
+    resource_manager::load_resource(_mat, m_mat, m_instance);
+    m_mat->set_pipeline<vertex3>();
+    m_mat->get_pipeline()->set_viewport({ 0, 0 }, {1920, 1080 }, {0, 1 });
 
-        m_input->create();
-        m_input->bind();
+    m_input->create();
+    m_input->bind();
 
-        auto vertex = m_input->add_buffer(m_mesh->vertices.size() * sizeof(wave_vertex), MARS_MEMORY_TYPE_VERTEX);
-        vertex->copy_data(m_mesh->vertices.data());
+    auto vertex = m_input->add_buffer(m_mesh->vertices.size() * sizeof(wave_vertex), MARS_MEMORY_TYPE_VERTEX);
+    vertex->copy_data(m_mesh->vertices.data());
 
-        auto index = m_input->add_buffer(m_mesh->indices.size() * sizeof(uint32_t), MARS_MEMORY_TYPE_INDEX);
-        index->copy_data(m_mesh->indices.data());
+    auto index = m_input->add_buffer(m_mesh->indices.size() * sizeof(uint32_t), MARS_MEMORY_TYPE_INDEX);
+    index->copy_data(m_mesh->indices.data());
 
-        m_input->load_input(vertex3::get_description());
+    m_input->load_input(vertex3::get_description());
 
-        m_input->unbind();
-        vertex->unbind();
-        index->unbind();
-    });
-
-    mars_executioner::executioner::add_job(mars_executioner::EXECUTIONER_JOB_PRIORITY_IN_FLIGHT, &job);
-    job.wait();
+    m_input->unbind();
+    vertex->unbind();
+    index->unbind();
 }
 
 void mesh_group::add_uniform(shader_data* _uniforms) {
@@ -85,18 +81,7 @@ void mesh_group::draw() {
     m_mat->bind();
     m_input->bind();
     for (auto& uniforms : m_uniforms) {
-
-        for (auto& uniform : uniforms->get_uniforms()) {
-            uniform.second->bind(m_instance->backend()->current_frame());
-            uniform.second->copy_data();
-        }
-
-        for (auto& texture : uniforms->get_textures()) {
-            if (active_textures[texture.second->get_index()] != texture.second) {
-                active_textures[texture.second->get_index()] = texture.second;
-                texture.second->bind();
-            }
-        }
+        uniforms->bind();
 
         m_instance->primary_buffer()->draw_indexed(m_mesh->indices.size());
     }
@@ -119,25 +104,23 @@ bool mesh_group::destroy_uniform(mars_graphics::shader_data* _uniform) {
     _uniform->destroy();
     delete _uniform;
 
-    if (m_uniforms.empty())
-        return true;
-    return false;
+    return m_uniforms.empty();
+}
+
+void mesh_group::destroy() {
+    m_input->destroy();
+    delete m_input;
 }
 
 void mesh_renderer::load() {
     _group = get_mesh_group(material_path, mesh_path, g_instance());
 
-    auto job = mars_executioner::executioner_job([&]() {
-        uniforms = _group->get_material()->generate_shader_data();
-    });
-
-    mars_executioner::executioner::add_job(mars_executioner::EXECUTIONER_JOB_PRIORITY_IN_FLIGHT, &job);
-
     render_job = new mars_executioner::executioner_job(_group->get_material()->get_pipeline(), [&]() {
         _group->draw();
     });
 
-    job.wait();
+    uniforms = _group->get_material()->generate_shader_data();
+
     _group->add_uniform(uniforms);
 
     uniforms->update("position", &m_rendering_mat);
@@ -151,6 +134,7 @@ void mesh_renderer::prepare_gpu() {
 
 void mesh_renderer::send_to_gpu() {
     m_rendering_mat = m_update_mat;
+    uniforms->get_uniform("position")->copy_data(g_instance()->current_frame());
 }
 
 void mesh_renderer::post_render() {

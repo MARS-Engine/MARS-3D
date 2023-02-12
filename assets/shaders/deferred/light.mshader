@@ -1,7 +1,7 @@
 #vertex
-deferred_light/deferred_light.vert
+light/light.vert
 #fragment
-deferred_light/deferred_light.frag
+light/light.frag
 #uniform
 lights buffer 388 0
 camera buffer 4 1

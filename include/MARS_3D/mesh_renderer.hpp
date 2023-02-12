@@ -29,6 +29,7 @@ namespace mars_3d {
 
         void clear();
         bool destroy_uniform(mars_graphics::shader_data* _uniform);
+        void destroy();
     };
 
     struct mesh_shader_mat {

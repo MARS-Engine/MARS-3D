@@ -1,7 +1,7 @@
 #vertex
-forward_buffer/forward_buffer.vert
+s_mesh/s_mesh.vert
 #fragment
-forward_buffer/forward_buffer.frag
+s_mesh/s_mesh.frag
 #uniform
 position buffer 44 0
 _mainTex sampler 1 1
