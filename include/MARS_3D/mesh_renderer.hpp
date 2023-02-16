@@ -15,7 +15,7 @@ namespace mars_3d {
         mars_graphics::material* m_mat = nullptr;
         mars_graphics::shader_input* m_input = nullptr;
         mars_graphics::graphics_instance* m_instance = nullptr;
-        pl::safe_vector<mars_graphics::shader_data*> m_uniforms;
+        pl::safe<mars_graphics::shader_data*> m_uniforms;
 
         std::atomic<bool> m_draw_executed = false;
     public:
@@ -38,10 +38,10 @@ namespace mars_3d {
         mars_math::matrix3<float> normal;
     };
 
-    class mesh_renderer : public mars_engine::component, public mars_layers::load_layer, public mars_layers::update_layer, public mars_layers::render_update_layer, public mars_layers::render_layer  {
+    class mesh_renderer : public mars_engine::component, public mars_layers::load_layer, public mars_layers::update_layer, public mars_layers::render_layer,
+                          public mars_layers::post_render_layer {
     private:
         mesh_shader_mat m_update_mat;
-        mesh_shader_mat m_rendering_mat;
         mesh_group* _group;
     public:
         mars_graphics::shader_data* uniforms = nullptr;
@@ -53,7 +53,6 @@ namespace mars_3d {
         inline void set_mesh_path(const std::string& _path) { mesh_path = _path; }
 
         void load() override;
-        void prepare_gpu() override;
         void send_to_gpu() override;
         void post_render() override;
         void destroy() override;

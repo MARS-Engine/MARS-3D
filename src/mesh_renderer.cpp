@@ -15,12 +15,14 @@ pl::safe_map<std::pair<std::string, std::string>, mesh_group*> multi_meshes;
 mesh_group* get_mesh_group(const std::string& _mat, const std::string& _mesh, graphics_instance* _instance) {
     auto pair = std::make_pair(_mat, _mesh);
 
-    if (multi_meshes.contains(pair))
+    multi_meshes.lock();
+    if (multi_meshes.contains(pair)) {
+        multi_meshes.unlock();
         return multi_meshes[pair];
+    }
 
     auto group = new mesh_group(_mat, _mesh, _instance);
 
-    multi_meshes.lock();
     multi_meshes[pair] = group;
     multi_meshes.unlock();
 
@@ -41,6 +43,8 @@ void destroy_group(const std::string& _mat, const std::string& _mesh, shader_dat
 
 
 mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, graphics_instance* _instance) {
+    m_uniforms.set(nullptr);
+
     resource_manager::load_resource(_mesh, m_mesh);
 
     m_instance = _instance;
@@ -67,26 +71,41 @@ mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, graphi
 }
 
 void mesh_group::add_uniform(shader_data* _uniforms) {
-    m_uniforms.lock();
-    m_uniforms.push_back(_uniforms);
+    auto head = m_uniforms.lock_get();
+
+    if (head == nullptr) {
+        m_uniforms.set(_uniforms);
+        m_uniforms.unlock();
+        return;
+    }
+
+    while (head->next() != nullptr)
+        head = head->next();
+
+    head->set_next(_uniforms);
+
     m_uniforms.unlock();
 }
 
 void mesh_group::draw() {
-    if (m_draw_executed)
+    if (m_draw_executed.exchange(true))
         return;
 
     std::map<size_t, texture*> active_textures;
 
     m_mat->bind();
     m_input->bind();
-    for (auto& uniforms : m_uniforms) {
-        uniforms->bind();
 
+    auto head = m_uniforms.lock_get();
+
+    while (head != nullptr) {
+        head->bind();
         m_instance->primary_buffer()->draw_indexed(m_mesh->indices.size());
+
+        head = head->next();
     }
 
-    m_draw_executed = true;
+    m_uniforms.unlock();
 }
 
 void mesh_group::clear() {
@@ -94,17 +113,31 @@ void mesh_group::clear() {
 }
 
 bool mesh_group::destroy_uniform(mars_graphics::shader_data* _uniform) {
-    m_uniforms.lock();
-    //NOTE: find is causing memory corruption, not sure why
-    for (size_t i = 0; i < m_uniforms.size(); i++)
-        if (m_uniforms[i] == _uniform)
-        m_uniforms.erase(m_uniforms.begin() + i);
+    auto current = m_uniforms.lock_get();
+    shader_data* prev = nullptr;
+
+    while (current != _uniform && current->next() != nullptr) {
+        prev = current;
+        current = current->next();
+    }
+
+    if (current == nullptr) {
+        m_uniforms.unlock();
+        return false;
+    }
+
+    if (prev != nullptr)
+        prev->set_next(current->next());
+
+    if (m_uniforms.get() == current)
+        m_uniforms.set(current->next());
+
+    current->destroy();
+    delete current;
+
     m_uniforms.unlock();
 
-    _uniform->destroy();
-    delete _uniform;
-
-    return m_uniforms.empty();
+    return m_uniforms.get() == nullptr;
 }
 
 void mesh_group::destroy() {
@@ -123,17 +156,13 @@ void mesh_renderer::load() {
 
     _group->add_uniform(uniforms);
 
-    uniforms->update("position", &m_rendering_mat);
-}
-
-void mesh_renderer::prepare_gpu() {
-    m_update_mat.transform = g_instance()->get_camera().get_proj_view() * transform()->matrix();
-    m_update_mat.model = transform()->matrix();
-    m_update_mat.normal = matrix3<float>(transform()->matrix()).inverse().transpose();
+    uniforms->update("position", &m_update_mat);
 }
 
 void mesh_renderer::send_to_gpu() {
-    m_rendering_mat = m_update_mat;
+    m_update_mat.transform = g_instance()->get_camera().get_proj_view() * transform()->matrix();
+    m_update_mat.model = transform()->matrix();
+    m_update_mat.normal = matrix3<float>(transform()->matrix()).inverse().transpose();
     uniforms->get_uniform("position")->copy_data(g_instance()->current_frame());
 }
 
