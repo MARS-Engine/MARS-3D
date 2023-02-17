@@ -1,2 +1,2 @@
-target_sources(MARS_3D PUBLIC
+target_sources(MARS PUBLIC
         mesh_renderer.cpp)

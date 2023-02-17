@@ -1,15 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
-project(MARS_3D)
-
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++23")
-
-add_library(MARS_3D SHARED)
-
-target_include_directories(MARS_3D PUBLIC include)
-
-target_link_libraries(MARS_3D MARS)
+target_include_directories(MARS PUBLIC include/)
 
 add_subdirectory(src)
 

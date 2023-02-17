@@ -160,9 +160,9 @@ void mesh_renderer::load() {
 }
 
 void mesh_renderer::send_to_gpu() {
-    m_update_mat.transform = g_instance()->get_camera().get_proj_view() * transform()->matrix();
-    m_update_mat.model = transform()->matrix();
-    m_update_mat.normal = matrix3<float>(transform()->matrix()).inverse().transpose();
+    m_update_mat.transform = g_instance()->get_camera().get_proj_view() * transform().matrix();
+    m_update_mat.model = transform().matrix();
+    m_update_mat.normal = matrix3<float>(transform().matrix()).inverse().transpose();
     uniforms->get_uniform("position")->copy_data(g_instance()->current_frame());
 }
 
