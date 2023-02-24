@@ -14,14 +14,15 @@ namespace mars_3d {
         mars_loader::wavefront_mesh* m_mesh = nullptr;
         mars_graphics::material* m_mat = nullptr;
         mars_graphics::shader_input* m_input = nullptr;
-        mars_graphics::graphics_instance* m_instance = nullptr;
+        mars_graphics::graphics_engine* m_graphics = nullptr;
         pl::safe<mars_graphics::shader_data*> m_uniforms;
 
         std::atomic<bool> m_draw_executed = false;
     public:
-        mesh_group(const std::string& _mat, const std::string& _mesh, mars_graphics::graphics_instance* _instance);
+        mesh_group(const std::string& _mat, const std::string& _mesh, mars_graphics::graphics_engine* _graphics);
 
-        inline mars_graphics::material* get_material() { return m_mat; }
+        [[nodiscard]] inline mars_loader::wavefront_mesh* get_mesh() const { return m_mesh; }
+        [[nodiscard]] inline mars_graphics::material* get_material() const { return m_mat; }
 
         void add_uniform(mars_graphics::shader_data* _uniforms);
 
@@ -45,6 +46,8 @@ namespace mars_3d {
         mesh_group* _group;
     public:
         mars_graphics::shader_data* uniforms = nullptr;
+
+        [[nodiscard]] inline mars_loader::wavefront_mesh* get_mesh() const { return _group->get_mesh(); }
 
         std::string mesh_path;
         std::string material_path;

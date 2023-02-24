@@ -12,7 +12,7 @@ using namespace mars_3d;
 
 pl::safe_map<std::pair<std::string, std::string>, mesh_group*> multi_meshes;
 
-mesh_group* get_mesh_group(const std::string& _mat, const std::string& _mesh, graphics_instance* _instance) {
+mesh_group* get_mesh_group(const std::string& _mat, const std::string& _mesh, graphics_engine* _graphics) {
     auto pair = std::make_pair(_mat, _mesh);
 
     multi_meshes.lock();
@@ -21,7 +21,7 @@ mesh_group* get_mesh_group(const std::string& _mat, const std::string& _mesh, gr
         return multi_meshes[pair];
     }
 
-    auto group = new mesh_group(_mat, _mesh, _instance);
+    auto group = new mesh_group(_mat, _mesh, _graphics);
 
     multi_meshes[pair] = group;
     multi_meshes.unlock();
@@ -42,15 +42,15 @@ void destroy_group(const std::string& _mat, const std::string& _mesh, shader_dat
 }
 
 
-mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, graphics_instance* _instance) {
+mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, graphics_engine* _graphics) {
+    m_graphics = _graphics;
     m_uniforms.set(nullptr);
 
-    resource_manager::load_resource(_mesh, m_mesh);
+    m_graphics->resources()->load_resource(_mesh, m_mesh);
 
-    m_instance = _instance;
-    m_input = m_instance->instance<shader_input>();
+    m_input = m_graphics->create<shader_input>();
 
-    resource_manager::load_resource(_mat, m_mat, m_instance);
+    m_graphics->resources()->load_resource(_mat, m_mat, m_graphics);
     m_mat->set_pipeline<vertex3>();
     m_mat->get_pipeline()->set_viewport({ 0, 0 }, {1920, 1080 }, {0, 1 });
 
@@ -100,7 +100,7 @@ void mesh_group::draw() {
 
     while (head != nullptr) {
         head->bind();
-        m_instance->primary_buffer()->draw_indexed(m_mesh->indices.size());
+        m_graphics->primary_buffer()->draw_indexed(m_mesh->indices.size());
 
         head = head->next();
     }
@@ -146,7 +146,7 @@ void mesh_group::destroy() {
 }
 
 void mesh_renderer::load() {
-    _group = get_mesh_group(material_path, mesh_path, g_instance());
+    _group = get_mesh_group(material_path, mesh_path, graphics());
 
     render_job = new mars_executioner::executioner_job(_group->get_material()->get_pipeline(), [&]() {
         _group->draw();
@@ -160,10 +160,10 @@ void mesh_renderer::load() {
 }
 
 void mesh_renderer::send_to_gpu() {
-    m_update_mat.transform = g_instance()->get_camera().get_proj_view() * transform().matrix();
+    m_update_mat.transform = graphics()->get_camera().get_proj_view() * transform().matrix();
     m_update_mat.model = transform().matrix();
     m_update_mat.normal = matrix3<float>(transform().matrix()).inverse().transpose();
-    uniforms->get_uniform("position")->copy_data(g_instance()->current_frame());
+    uniforms->get_uniform("position")->copy_data(graphics()->current_frame());
 }
 
 void mesh_renderer::post_render() {
