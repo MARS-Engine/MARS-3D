@@ -109,7 +109,7 @@ void mesh_group::draw() {
 }
 
 void mesh_group::clear() {
-    m_draw_executed = false;
+    m_draw_executed.exchange(false);
 }
 
 bool mesh_group::destroy_uniform(mars_graphics::shader_data* _uniform) {
