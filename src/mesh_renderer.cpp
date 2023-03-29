@@ -1,6 +1,5 @@
 #include <MARS_3D/mesh_renderer.hpp>
 #include <MARS/resources/resource_manager.hpp>
-#include <MARS/executioner/executioner.hpp>
 #include <MARS/graphics/attribute/vertex3.hpp>
 #include <MARS/math/vector4.hpp>
 
@@ -12,7 +11,7 @@ using namespace mars_3d;
 
 pl::safe_map<std::pair<std::string, std::string>, mesh_group*> multi_meshes;
 
-mesh_group* get_mesh_group(const std::string& _mat, const std::string& _mesh, graphics_engine* _graphics) {
+mesh_group* get_mesh_group(const std::string& _mat, const std::string& _mesh, std::shared_ptr<mars_graphics::graphics_engine> _graphics) {
     auto pair = std::make_pair(_mat, _mesh);
 
     multi_meshes.lock();
@@ -29,7 +28,7 @@ mesh_group* get_mesh_group(const std::string& _mat, const std::string& _mesh, gr
     return group;
 }
 
-void destroy_group(const std::string& _mat, const std::string& _mesh, shader_data* _uniform) {
+void destroy_group(const std::string& _mat, const std::string& _mesh, const std::shared_ptr<shader_data>& _uniform) {
     auto pair = std::make_pair(_mat, _mesh);
 
     multi_meshes.lock();
@@ -42,9 +41,8 @@ void destroy_group(const std::string& _mat, const std::string& _mesh, shader_dat
 }
 
 
-mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, graphics_engine* _graphics) {
+mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, const std::shared_ptr<mars_graphics::graphics_engine>& _graphics) {
     m_graphics = _graphics;
-    m_uniforms.set(nullptr);
 
     m_graphics->resources()->load_resource(_mesh, m_mesh);
 
@@ -70,20 +68,9 @@ mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, graphi
     index->unbind();
 }
 
-void mesh_group::add_uniform(shader_data* _uniforms) {
-    auto head = m_uniforms.lock_get();
-
-    if (head == nullptr) {
-        m_uniforms.set(_uniforms);
-        m_uniforms.unlock();
-        return;
-    }
-
-    while (head->next() != nullptr)
-        head = head->next();
-
-    head->set_next(_uniforms);
-
+void mesh_group::add_uniform(const std::shared_ptr<mars_graphics::shader_data>& _uniforms) {
+    m_uniforms.lock();
+    m_uniforms.push_back(_uniforms);
     m_uniforms.unlock();
 }
 
@@ -91,18 +78,18 @@ void mesh_group::draw() {
     if (m_draw_executed.exchange(true))
         return;
 
+    m_mat->get_pipeline()->bind();
+
     std::map<size_t, texture*> active_textures;
 
     m_mat->bind();
     m_input->bind();
 
-    auto head = m_uniforms.lock_get();
+    m_uniforms.lock();
 
-    while (head != nullptr) {
-        head->bind();
+    for (auto& uni : m_uniforms) {
+        uni->bind();
         m_graphics->primary_buffer()->draw_indexed(m_mesh->indices.size());
-
-        head = head->next();
     }
 
     m_uniforms.unlock();
@@ -112,51 +99,30 @@ void mesh_group::clear() {
     m_draw_executed.exchange(false);
 }
 
-bool mesh_group::destroy_uniform(mars_graphics::shader_data* _uniform) {
-    auto current = m_uniforms.lock_get();
-    shader_data* prev = nullptr;
+bool mesh_group::destroy_uniform(const std::shared_ptr<mars_graphics::shader_data>& _uniform) {
+    m_uniforms.lock();
 
-    while (current != _uniform && current->next() != nullptr) {
-        prev = current;
-        current = current->next();
-    }
+    //std::remove(m_uniforms.begin(), m_uniforms.end(), _uniform);
 
-    if (current == nullptr) {
-        m_uniforms.unlock();
-        return false;
-    }
-
-    if (prev != nullptr)
-        prev->set_next(current->next());
-
-    if (m_uniforms.get() == current)
-        m_uniforms.set(current->next());
-
-    current->destroy();
-    delete current;
-
+    auto is_empty  = m_uniforms.empty();
     m_uniforms.unlock();
-
-    return m_uniforms.get() == nullptr;
+    return is_empty;
 }
 
 void mesh_group::destroy() {
     m_input->destroy();
-    delete m_input;
 }
 
 void mesh_renderer::load() {
     _group = get_mesh_group(material_path, mesh_path, graphics());
-
-    render_job = new mars_executioner::executioner_job(_group->get_material()->get_pipeline(), [&]() {
-        _group->draw();
-    });
 
     uniforms = _group->get_material()->generate_shader_data();
 
     _group->add_uniform(uniforms);
 
     uniforms->update("position", &m_update_mat);
+
+    graphics()->add_drawcall([&]() { _group->draw(); });
 }
 
 void mesh_renderer::send_to_gpu() {
