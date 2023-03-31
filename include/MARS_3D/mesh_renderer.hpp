@@ -15,12 +15,12 @@ namespace mars_3d {
         std::shared_ptr<mars_loader::wavefront_mesh> m_mesh = nullptr;
         std::shared_ptr<mars_graphics::material> m_mat = nullptr;
         std::shared_ptr<mars_graphics::shader_input> m_input;
-        std::shared_ptr<mars_graphics::graphics_engine> m_graphics;
+        mars_graphics::graphics_engine m_graphics;
         pl::safe_vector<std::shared_ptr<mars_graphics::shader_data>> m_uniforms;
 
         std::atomic<bool> m_draw_executed = false;
     public:
-        mesh_group(const std::string& _mat, const std::string& _mesh, const std::shared_ptr<mars_graphics::graphics_engine>& _graphics);
+        mesh_group(const std::string& _mat, const std::string& _mesh, const mars_graphics::graphics_engine& _graphics);
 
         [[nodiscard]] inline std::shared_ptr<mars_loader::wavefront_mesh> get_mesh() const { return m_mesh; }
         [[nodiscard]] inline std::shared_ptr<mars_graphics::material> get_material() const { return m_mat; }

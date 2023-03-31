@@ -11,7 +11,7 @@ using namespace mars_3d;
 
 pl::safe_map<std::pair<std::string, std::string>, mesh_group*> multi_meshes;
 
-mesh_group* get_mesh_group(const std::string& _mat, const std::string& _mesh, std::shared_ptr<mars_graphics::graphics_engine> _graphics) {
+mesh_group* get_mesh_group(const std::string& _mat, const std::string& _mesh, const mars_graphics::graphics_engine& _graphics) {
     auto pair = std::make_pair(_mat, _mesh);
 
     multi_meshes.lock();
@@ -37,11 +37,15 @@ void destroy_group(const std::string& _mat, const std::string& _mesh, const std:
         delete multi_meshes[pair];
         multi_meshes.erase(pair);
     }
+
+    if (multi_meshes.empty())
+        multi_meshes.clear();
+
     multi_meshes.unlock();
 }
 
 
-mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, const std::shared_ptr<mars_graphics::graphics_engine>& _graphics) {
+mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, const mars_graphics::graphics_engine& _graphics) {
     m_graphics = _graphics;
 
     m_graphics->resources()->load_resource(_mesh, m_mesh);
@@ -102,7 +106,7 @@ void mesh_group::clear() {
 bool mesh_group::destroy_uniform(const std::shared_ptr<mars_graphics::shader_data>& _uniform) {
     m_uniforms.lock();
 
-    //std::remove(m_uniforms.begin(), m_uniforms.end(), _uniform);
+    m_uniforms.erase(std::find(m_uniforms.begin(), m_uniforms.end(), _uniform));
 
     auto is_empty  = m_uniforms.empty();
     m_uniforms.unlock();
