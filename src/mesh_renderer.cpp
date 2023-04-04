@@ -28,7 +28,7 @@ mesh_group* get_mesh_group(const std::string& _mat, const std::string& _mesh, co
     return group;
 }
 
-void destroy_group(const std::string& _mat, const std::string& _mesh, const std::shared_ptr<shader_data>& _uniform) {
+void destroy_group(const std::string& _mat, const std::string& _mesh, const mars_ref<shader_data>& _uniform) {
     auto pair = std::make_pair(_mat, _mesh);
 
     multi_meshes.lock();
@@ -72,7 +72,7 @@ mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, const 
     index->unbind();
 }
 
-void mesh_group::add_uniform(const std::shared_ptr<mars_graphics::shader_data>& _uniforms) {
+void mesh_group::add_uniform(const mars_ref<mars_graphics::shader_data>& _uniforms) {
     m_uniforms.lock();
     m_uniforms.push_back(_uniforms);
     m_uniforms.unlock();
@@ -103,10 +103,11 @@ void mesh_group::clear() {
     m_draw_executed.exchange(false);
 }
 
-bool mesh_group::destroy_uniform(const std::shared_ptr<mars_graphics::shader_data>& _uniform) {
+bool mesh_group::destroy_uniform(const mars_ref<mars_graphics::shader_data>& _uniform) {
     m_uniforms.lock();
 
     m_uniforms.erase(std::find(m_uniforms.begin(), m_uniforms.end(), _uniform));
+    _uniform->destroy();
 
     auto is_empty  = m_uniforms.empty();
     m_uniforms.unlock();

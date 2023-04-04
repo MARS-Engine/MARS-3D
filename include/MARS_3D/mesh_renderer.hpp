@@ -12,25 +12,25 @@ namespace mars_3d {
 
     struct mesh_group {
     private:
-        std::shared_ptr<mars_loader::wavefront_mesh> m_mesh = nullptr;
-        std::shared_ptr<mars_graphics::material> m_mat = nullptr;
-        std::shared_ptr<mars_graphics::shader_input> m_input;
+        mars_ref<mars_loader::wavefront_mesh> m_mesh;
+        mars_ref<mars_graphics::material> m_mat;
+        mars_ref<mars_graphics::shader_input> m_input;
         mars_graphics::graphics_engine m_graphics;
-        pl::safe_vector<std::shared_ptr<mars_graphics::shader_data>> m_uniforms;
+        pl::safe_vector<mars_ref<mars_graphics::shader_data>> m_uniforms;
 
         std::atomic<bool> m_draw_executed = false;
     public:
         mesh_group(const std::string& _mat, const std::string& _mesh, const mars_graphics::graphics_engine& _graphics);
 
-        [[nodiscard]] inline std::shared_ptr<mars_loader::wavefront_mesh> get_mesh() const { return m_mesh; }
-        [[nodiscard]] inline std::shared_ptr<mars_graphics::material> get_material() const { return m_mat; }
+        [[nodiscard]] inline mars_ref<mars_loader::wavefront_mesh> get_mesh() const { return m_mesh; }
+        [[nodiscard]] inline mars_ref<mars_graphics::material> get_material() const { return m_mat; }
 
-        void add_uniform(const std::shared_ptr<mars_graphics::shader_data>& _uniforms);
+        void add_uniform(const mars_ref<mars_graphics::shader_data>& _uniforms);
 
         void draw();
 
         void clear();
-        bool destroy_uniform(const std::shared_ptr<mars_graphics::shader_data>& _uniform);
+        bool destroy_uniform(const mars_ref<mars_graphics::shader_data>& _uniform);
         void destroy();
     };
 
@@ -45,9 +45,9 @@ namespace mars_3d {
         mesh_shader_mat m_update_mat;
         mesh_group* _group;
     public:
-        std::shared_ptr<mars_graphics::shader_data> uniforms = nullptr;
+        mars_ref<mars_graphics::shader_data> uniforms;
 
-        [[nodiscard]] inline std::shared_ptr<mars_loader::wavefront_mesh> get_mesh() const { return _group->get_mesh(); }
+        [[nodiscard]] inline mars_ref<mars_loader::wavefront_mesh> get_mesh() const { return _group->get_mesh(); }
 
         std::string mesh_path;
         std::string material_path;
