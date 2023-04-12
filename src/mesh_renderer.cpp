@@ -9,18 +9,18 @@ using namespace mars_math;
 using namespace mars_loader;
 using namespace mars_3d;
 
-pl::safe_map<std::pair<std::string, std::string>, mesh_group*> multi_meshes;
+pl::safe_map<std::pair<std::string, std::string>, std::shared_ptr<mesh_group>> multi_meshes;
 
-mesh_group* get_mesh_group(const std::string& _mat, const std::string& _mesh, const mars_graphics::graphics_engine& _graphics) {
+std::shared_ptr<mesh_group> get_mesh_group(const std::string& _mat, const std::string& _mesh, const mars_ref<mars_graphics::graphics_engine>& _graphics) {
     auto pair = std::make_pair(_mat, _mesh);
 
     multi_meshes.lock();
     if (multi_meshes.contains(pair)) {
         multi_meshes.unlock();
-        return multi_meshes[pair];
+        return multi_meshes.at(pair);
     }
 
-    auto group = new mesh_group(_mat, _mesh, _graphics);
+    auto group = std::make_shared<mesh_group>(_mat, _mesh, _graphics);
 
     multi_meshes[pair] = group;
     multi_meshes.unlock();
@@ -31,10 +31,12 @@ mesh_group* get_mesh_group(const std::string& _mat, const std::string& _mesh, co
 void destroy_group(const std::string& _mat, const std::string& _mesh, const mars_ref<shader_data>& _uniform) {
     auto pair = std::make_pair(_mat, _mesh);
 
+    if (!multi_meshes.contains(pair))
+        return;
+
     multi_meshes.lock();
-    if (multi_meshes[pair]->destroy_uniform(_uniform)) {
-        multi_meshes[pair]->destroy();
-        delete multi_meshes[pair];
+    if ( multi_meshes.at(pair)->destroy_uniform(_uniform)) {
+        multi_meshes.at(pair)->destroy();
         multi_meshes.erase(pair);
     }
 
@@ -45,10 +47,11 @@ void destroy_group(const std::string& _mat, const std::string& _mesh, const mars
 }
 
 
-mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, const mars_graphics::graphics_engine& _graphics) {
+mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, const mars_ref<mars_graphics::graphics_engine>& _graphics) {
     m_graphics = _graphics;
 
-    m_graphics->resources()->load_resource(_mesh, m_mesh);
+    type = MARS_MESH_RENDER_ACTIVE_TYPE_REF;
+    m_graphics->resources()->load_resource(_mesh, m_mesh_ref);
 
     m_input = m_graphics->create<shader_input>();
 
@@ -59,11 +62,11 @@ mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, const 
     m_input->create();
     m_input->bind();
 
-    auto vertex = m_input->add_buffer(m_mesh->vertices.size() * sizeof(wave_vertex), MARS_MEMORY_TYPE_VERTEX);
-    vertex->copy_data(m_mesh->vertices.data());
+    auto vertex = m_input->add_buffer(get_mesh().vertices.size() * sizeof(wave_vertex), MARS_MEMORY_TYPE_VERTEX);
+    vertex->copy_data(get_mesh().vertices.data());
 
-    auto index = m_input->add_buffer(m_mesh->indices.size() * sizeof(uint32_t), MARS_MEMORY_TYPE_INDEX);
-    index->copy_data(m_mesh->indices.data());
+    auto index = m_input->add_buffer(m_mesh_ref->indices.size() * sizeof(uint32_t), MARS_MEMORY_TYPE_INDEX);
+    index->copy_data(get_mesh().indices.data());
 
     m_input->load_input(vertex3::get_description());
 
@@ -93,7 +96,7 @@ void mesh_group::draw() {
 
     for (auto& uni : m_uniforms) {
         uni->bind();
-        m_graphics->primary_buffer()->draw_indexed(m_mesh->indices.size());
+        m_graphics->primary_buffer()->draw_indexed(m_mesh_ref->indices.size());
     }
 
     m_uniforms.unlock();
@@ -131,6 +134,9 @@ void mesh_renderer::load() {
 }
 
 void mesh_renderer::send_to_gpu() {
+    if (!uniforms.is_alive())
+        return;
+
     m_update_mat.transform = graphics()->get_camera().get_proj_view() * transform().matrix();
     m_update_mat.model = transform().matrix();
     m_update_mat.normal = matrix3<float>(transform().matrix()).inverse().transpose();
@@ -138,6 +144,9 @@ void mesh_renderer::send_to_gpu() {
 }
 
 void mesh_renderer::post_render() {
+    if (_group == nullptr)
+        return;
+
     _group->clear();
 }
 
