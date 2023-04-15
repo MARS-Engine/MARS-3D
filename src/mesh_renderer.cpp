@@ -9,64 +9,20 @@ using namespace mars_math;
 using namespace mars_loader;
 using namespace mars_3d;
 
-pl::safe_map<std::pair<std::string, std::string>, std::shared_ptr<mesh_group>> multi_meshes;
-
-std::shared_ptr<mesh_group> get_mesh_group(const std::string& _mat, const std::string& _mesh, const mars_ref<mars_graphics::graphics_engine>& _graphics) {
-    auto pair = std::make_pair(_mat, _mesh);
-
-    multi_meshes.lock();
-    if (multi_meshes.contains(pair)) {
-        multi_meshes.unlock();
-        return multi_meshes.at(pair);
-    }
-
-    auto group = std::make_shared<mesh_group>(_mat, _mesh, _graphics);
-
-    multi_meshes[pair] = group;
-    multi_meshes.unlock();
-
-    return group;
-}
-
-void destroy_group(const std::string& _mat, const std::string& _mesh, const mars_ref<shader_data>& _uniform) {
-    auto pair = std::make_pair(_mat, _mesh);
-
-    if (!multi_meshes.contains(pair))
-        return;
-
-    multi_meshes.lock();
-    if ( multi_meshes.at(pair)->destroy_uniform(_uniform)) {
-        multi_meshes.at(pair)->destroy();
-        multi_meshes.erase(pair);
-    }
-
-    if (multi_meshes.empty())
-        multi_meshes.clear();
-
-    multi_meshes.unlock();
-}
-
-
-mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, const mars_ref<mars_graphics::graphics_engine>& _graphics) {
-    m_graphics = _graphics;
-
-    type = MARS_MESH_RENDER_ACTIVE_TYPE_REF;
-    m_graphics->resources()->load_resource(_mesh, m_mesh_ref);
-
+void mesh_handler::create() {
     m_input = m_graphics->create<shader_input>();
 
-    m_graphics->resources()->load_resource(_mat, m_mat, m_graphics);
     m_mat->set_pipeline<vertex3>();
     m_mat->get_pipeline()->set_viewport({ 0, 0 }, {1920, 1080 }, {0, 1 });
 
     m_input->create();
     m_input->bind();
 
-    auto vertex = m_input->add_buffer(get_mesh().vertices.size() * sizeof(wave_vertex), MARS_MEMORY_TYPE_VERTEX);
-    vertex->copy_data(get_mesh().vertices.data());
+    auto vertex = m_input->add_buffer(m_mesh->vertices.size() * sizeof(wave_vertex), MARS_MEMORY_TYPE_VERTEX);
+    vertex->copy_data(m_mesh->vertices.data());
 
-    auto index = m_input->add_buffer(m_mesh_ref->indices.size() * sizeof(uint32_t), MARS_MEMORY_TYPE_INDEX);
-    index->copy_data(get_mesh().indices.data());
+    auto index = m_input->add_buffer(m_mesh->indices.size() * sizeof(uint32_t), MARS_MEMORY_TYPE_INDEX);
+    index->copy_data(m_mesh->indices.data());
 
     m_input->load_input(vertex3::get_description());
 
@@ -75,62 +31,60 @@ mesh_group::mesh_group(const std::string& _mat, const std::string& _mesh, const 
     index->unbind();
 }
 
-void mesh_group::add_uniform(const mars_ref<mars_graphics::shader_data>& _uniforms) {
-    m_uniforms.lock();
-    m_uniforms.push_back(_uniforms);
-    m_uniforms.unlock();
-}
-
-void mesh_group::draw() {
-    if (m_draw_executed.exchange(true))
+void mesh_handler::bind() {
+    if (m_bind_executed.exchange(true))
         return;
 
     m_mat->get_pipeline()->bind();
-
-    std::map<size_t, texture*> active_textures;
-
     m_mat->bind();
     m_input->bind();
+}
+
+void mesh_handler::draw() {
+    if (m_draw_executed.exchange(true))
+        return;
 
     m_uniforms.lock();
 
     for (auto& uni : m_uniforms) {
         uni->bind();
-        m_graphics->primary_buffer()->draw_indexed(m_mesh_ref->indices.size());
+        m_graphics->primary_buffer()->draw_indexed(m_mesh->indices.size());
     }
 
     m_uniforms.unlock();
 }
 
-void mesh_group::clear() {
-    m_draw_executed.exchange(false);
-}
-
-bool mesh_group::destroy_uniform(const mars_ref<mars_graphics::shader_data>& _uniform) {
-    m_uniforms.lock();
-
-    m_uniforms.erase(std::find(m_uniforms.begin(), m_uniforms.end(), _uniform));
-    _uniform->destroy();
-
-    auto is_empty  = m_uniforms.empty();
-    m_uniforms.unlock();
-    return is_empty;
-}
-
-void mesh_group::destroy() {
+void mesh_handler::destroy() {
     m_input->destroy();
+    for (const auto &uni : m_uniforms)
+        uni->destroy();
+    m_uniforms.clear();
+}
+
+mesh_renderer::mesh_renderer() {
+    m_mesh = std::make_shared<mesh_handler>();
+}
+
+void mesh_renderer::set_material(const std::string& _path) {
+    mars_ref<mars_graphics::material> mat;
+    engine()->resources()->load_resource(_path, mat, graphics());
+    m_mesh->set_material(mat);
+}
+
+void mesh_renderer::set_mesh_path(const std::string &_path) {
+    mars_ref<mars_loader::wavefront_mesh> mesh;
+    engine()->resources()->load_resource(_path, mesh);
+    m_mesh->set_mesh(mesh.cast_static<mars_loader::mesh<wave_vertex>>());
 }
 
 void mesh_renderer::load() {
-    _group = get_mesh_group(material_path, mesh_path, graphics());
-
-    uniforms = _group->get_material()->generate_shader_data();
-
-    _group->add_uniform(uniforms);
-
+    m_mesh->set_graphics(graphics());
+    m_mesh->create();
+    uniforms = m_mesh->create_uniform();
     uniforms->update("position", &m_update_mat);
 
-    graphics()->add_drawcall([&]() { _group->draw(); });
+
+    graphics()->add_drawcall([&]() { m_mesh->bind(); m_mesh->draw(); });
 }
 
 void mesh_renderer::send_to_gpu() {
@@ -144,12 +98,12 @@ void mesh_renderer::send_to_gpu() {
 }
 
 void mesh_renderer::post_render() {
-    if (_group == nullptr)
+    if (m_mesh == nullptr)
         return;
 
-    _group->clear();
+    m_mesh->clear();
 }
 
 void mesh_renderer::destroy() {
-    destroy_group(material_path, mesh_path, uniforms);
+    m_mesh->destroy();
 }
