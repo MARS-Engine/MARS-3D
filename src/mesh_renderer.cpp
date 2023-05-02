@@ -44,21 +44,17 @@ void mesh_handler::draw() {
     if (m_draw_executed.exchange(true))
         return;
 
-    m_uniforms.lock();
-
-    for (auto& uni : m_uniforms) {
+    for (auto& uni : *m_uniforms.lock().get()) {
         uni->bind();
         m_graphics->primary_buffer()->draw_indexed(m_mesh->indices.size());
     }
-
-    m_uniforms.unlock();
 }
 
 void mesh_handler::destroy() {
     m_input->destroy();
-    for (const auto &uni : m_uniforms)
+    for (const auto &uni : *m_uniforms.lock().get())
         uni->destroy();
-    m_uniforms.clear();
+    m_uniforms.lock()->clear();
 }
 
 mesh_renderer::mesh_renderer() {

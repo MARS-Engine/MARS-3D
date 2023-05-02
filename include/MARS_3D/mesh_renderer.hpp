@@ -32,9 +32,7 @@ namespace mars_3d {
 
         inline mars_ref<mars_graphics::shader_data> create_uniform() {
             auto uni = m_mat->generate_shader_data();
-            m_uniforms.lock();
-            m_uniforms.push_back(uni);
-            m_uniforms.unlock();
+            m_uniforms.lock()->push_back(uni);
             return uni;
         }
 
