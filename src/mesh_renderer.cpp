@@ -19,10 +19,12 @@ void mesh_handler::create() {
     m_input->bind();
 
     auto vertex = m_input->add_buffer(m_mesh->vertices.size() * sizeof(wave_vertex), MARS_MEMORY_TYPE_VERTEX);
-    vertex->copy_data(m_mesh->vertices.data());
+    vertex->update(m_mesh->vertices.data());
+    vertex->copy_data(0);
 
     auto index = m_input->add_buffer(m_mesh->indices.size() * sizeof(uint32_t), MARS_MEMORY_TYPE_INDEX);
-    index->copy_data(m_mesh->indices.data());
+    index->update(m_mesh->indices.data());
+    index->copy_data(0);
 
     m_input->load_input(vertex3::get_description());
 
