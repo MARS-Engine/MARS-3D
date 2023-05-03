@@ -15,7 +15,7 @@ namespace mars_3d {
         mars_ref<mars_graphics::material> m_mat;
         mars_ref<mars_graphics::shader_input> m_input;
         mars_ref<mars_graphics::graphics_engine> m_graphics;
-        pl::safe_vector<mars_ref<mars_graphics::shader_data>> m_uniforms;
+        pl::safe_vector<std::shared_ptr<mars_graphics::shader_data>> m_uniforms;
 
         mars_ref<mars_loader::mesh<mars_loader::wave_vertex>> m_mesh;
 
@@ -30,7 +30,7 @@ namespace mars_3d {
             m_graphics = _graphics;
         }
 
-        inline mars_ref<mars_graphics::shader_data> create_uniform() {
+        inline std::shared_ptr<mars_graphics::shader_data> create_uniform() {
             auto uni = m_mat->generate_shader_data();
             m_uniforms.lock()->push_back(uni);
             return uni;
@@ -60,7 +60,7 @@ namespace mars_3d {
         mesh_shader_mat m_update_mat;
         std::shared_ptr<mesh_handler> m_mesh;
     public:
-        mars_ref<mars_graphics::shader_data> uniforms;
+        std::shared_ptr<mars_graphics::shader_data> uniforms;
 
         void set_material(const std::string& _path);
 

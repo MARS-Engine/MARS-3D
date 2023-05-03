@@ -54,8 +54,6 @@ void mesh_handler::draw() {
 
 void mesh_handler::destroy() {
     m_input->destroy();
-    for (const auto &uni : *m_uniforms.lock().get())
-        uni->destroy();
     m_uniforms.lock()->clear();
 }
 
@@ -86,7 +84,7 @@ void mesh_renderer::load() {
 }
 
 void mesh_renderer::send_to_gpu() {
-    if (!uniforms.is_alive())
+    if (!uniforms)
         return;
 
     m_update_mat.transform = graphics()->get_camera().get_proj_view() * transform().matrix();
@@ -103,5 +101,6 @@ void mesh_renderer::post_render() {
 }
 
 void mesh_renderer::destroy() {
+    uniforms.reset();
     m_mesh->destroy();
 }
