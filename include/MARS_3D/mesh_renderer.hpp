@@ -13,7 +13,7 @@ namespace mars_3d {
     class mesh_handler {
     private:
         mars_ref<mars_graphics::material> m_mat;
-        mars_ref<mars_graphics::shader_input> m_input;
+        std::shared_ptr<mars_graphics::shader_input> m_input;
         mars_ref<mars_graphics::graphics_engine> m_graphics;
         pl::safe_vector<std::shared_ptr<mars_graphics::shader_data>> m_uniforms;
 

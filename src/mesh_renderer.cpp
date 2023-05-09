@@ -10,25 +10,24 @@ using namespace mars_loader;
 using namespace mars_3d;
 
 void mesh_handler::create() {
-    m_input = m_graphics->create<shader_input>();
 
     m_mat->set_pipeline<vertex3>();
     m_mat->get_pipeline()->set_viewport({ 0, 0 }, {1920, 1080 }, {0, 1 });
 
-    m_input->create();
-    m_input->bind();
+    auto builder = m_graphics->builder<shader_input_builder>();
 
-    auto vertex = m_input->add_buffer(m_mesh->vertices.size() * sizeof(wave_vertex), MARS_MEMORY_TYPE_VERTEX);
+    auto vertex = builder.add_buffer(m_mesh->vertices.size() * sizeof(wave_vertex), MARS_MEMORY_TYPE_VERTEX);
     vertex->update(m_mesh->vertices.data());
     vertex->copy_data(0);
 
-    auto index = m_input->add_buffer(m_mesh->indices.size() * sizeof(uint32_t), MARS_MEMORY_TYPE_INDEX);
+    auto index = builder.add_buffer(m_mesh->indices.size() * sizeof(uint32_t), MARS_MEMORY_TYPE_INDEX);
     index->update(m_mesh->indices.data());
     index->copy_data(0);
 
-    m_input->load_input(vertex3::get_description());
+    builder.load_input(vertex3::get_description());
 
-    m_input->unbind();
+    m_input = builder.build();
+
     vertex->unbind();
     index->unbind();
 }
@@ -53,7 +52,7 @@ void mesh_handler::draw() {
 }
 
 void mesh_handler::destroy() {
-    m_input->destroy();
+    m_input.reset();
     m_uniforms.lock()->clear();
 }
 
