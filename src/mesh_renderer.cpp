@@ -12,7 +12,7 @@ using namespace mars_3d;
 void mesh_handler::create() {
 
     m_mat->set_pipeline<vertex3>();
-    m_mat->get_pipeline()->set_viewport({ 0, 0 }, {1920, 1080 }, {0, 1 });
+    m_mat->get_pipeline().get().lock()->set_viewport({ 0, 0 }, {1920, 1080 }, {0, 1 });
 
     auto builder = m_graphics->builder<shader_input_builder>();
 
