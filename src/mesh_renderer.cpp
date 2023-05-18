@@ -62,13 +62,13 @@ mesh_renderer::mesh_renderer() {
 
 void mesh_renderer::set_material(const std::string& _path) {
     mars_ref<mars_graphics::material> mat;
-    engine()->resources()->load_resource(_path, mat, graphics());
+    engine()->get<mars_resources::resource_manager>()->load_resource(_path, mat, graphics());
     m_mesh->set_material(mat);
 }
 
 void mesh_renderer::set_mesh_path(const std::string &_path) {
     mars_ref<mars_loader::wavefront_mesh> mesh;
-    engine()->resources()->load_resource(_path, mesh);
+    engine()->get<mars_resources::resource_manager>()->load_resource(_path, mesh);
     m_mesh->set_mesh(mesh.cast_static<mars_loader::mesh<wave_vertex>>());
 }
 
