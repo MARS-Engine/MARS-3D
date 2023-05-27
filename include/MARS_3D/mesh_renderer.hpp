@@ -6,7 +6,7 @@
 #include <MARS/loaders/wavefront_loader.hpp>
 #include <MARS/engine/layers/main_layers.hpp>
 #include <MARS/math/matrix3.hpp>
-#include <pl/safe_ptr.hpp>
+#include <pl/safe.hpp>
 
 namespace mars_3d {
 
@@ -15,7 +15,7 @@ namespace mars_3d {
         mars_ref<mars_graphics::material> m_mat;
         std::shared_ptr<mars_graphics::shader_input> m_input;
         mars_ref<mars_graphics::graphics_engine> m_graphics;
-        pl::safe_vector<std::shared_ptr<mars_graphics::shader_data>> m_uniforms;
+        pl::safe<std::vector<std::shared_ptr<mars_graphics::shader_data>>> m_uniforms;
 
         mars_ref<mars_loader::mesh<mars_loader::wave_vertex>> m_mesh;
 

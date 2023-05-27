@@ -24,7 +24,7 @@ void mesh_handler::create() {
     index->update(m_mesh->indices.data());
     index->copy_data(0);
 
-    builder.load_input(vertex3::get_description());
+    builder.load_input(vertex3::description());
 
     m_input = builder.build();
 
